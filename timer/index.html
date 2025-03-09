@@ -1,130 +1,248 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Countdown Timer</title>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono&display=swap" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <style>
-    body {
-      transition: background 0.3s, color 0.3s;
-      background-color: #000;
-      color: #fff;
-      font-family: 'JetBrains Mono', monospace;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
-    }
-    .countdown {
-      font-size: 10vw;
-      text-align: center;
-      user-select: none;
-      width: 100%;
-    }
-    .controls {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-    }
-    .controls button {
-      opacity: 0;
-      transition: opacity 0.3s;
-    }
-    .controls button:hover {
-      opacity: 1;
-    }
-    .collapse-container {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      width: 250px;
-      z-index: 1050;
-    }
-  </style>
+    <title>Beautiful Countdown Timer</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        :root {
+            --bg-color: #ffffff;
+            --text-color: #2c3e50;
+            --accent-color: #42b983;
+            --input-bg: #ffffff;
+            --input-text: #2c3e50;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #000000;
+            --text-color: #ffffff;
+            --accent-color: #42b983;
+            --input-bg: #333333;
+            --input-text: #ffffff;
+            --shadow-color: rgba(255, 255, 255, 0.1);
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'JetBrains Mono', monospace;
+            transition: all 0.3s ease;
+        }
+
+        .modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--bg-color);
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px var(--shadow-color);
+            max-width: 400px;
+            width: 100%;
+        }
+
+        .countdown-display {
+            font-size: 10rem;
+            font-weight: bold;
+            color: var(--accent-color);
+            text-shadow: 0 4px 6px var(--shadow-color);
+            transition: color 0.3s ease;
+        }
+
+        .settings-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            color: var(--accent-color);
+            font-size: 1.5rem;
+            cursor: pointer;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        input[type="time"] {
+            padding: 0.5rem;
+            border: 2px solid var(--accent-color);
+            border-radius: 5px;
+            margin: 1rem 0;
+            width: 100%;
+            font-family: 'JetBrains Mono', monospace;
+            background-color: var(--input-bg);
+            color: var(--input-text);
+        }
+
+        button {
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 0.8rem 2rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: transform 0.2s ease;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        button:hover {
+            transform: scale(1.05);
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .settings-modal {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--bg-color);
+            padding: 1rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px var(--shadow-color);
+        }
+
+        .color-picker {
+            margin: 1rem 0;
+        }
+
+        input[type="checkbox"] {
+            accent-color: var(--accent-color);
+        }
+    </style>
 </head>
 <body>
-  <div class="controls">
-    <button class="btn btn-secondary dark-mode-toggle" id="darkModeToggle">☀️</button>
-    <button class="btn btn-primary toggle-btn" type="button" data-bs-toggle="collapse" data-bs-target="#inputCollapse" aria-expanded="false" aria-controls="inputCollapse">🕒</button>
-  </div>
-  <div class="collapse collapse-container" id="inputCollapse">
-    <div class="card card-body">
-      <form id="timeForm">
-        <div class="mb-3">
-          <label for="targetTime" class="form-label">Target Time (HH:MM):</label>
-          <input type="time" class="form-control" id="targetTime" required>
+    <div id="app">
+        <!-- Settings Modal -->
+        <div class="settings-modal" v-if="showSettings">
+            <h3>Settings</h3>
+            <label>
+                Dark Mode:
+                <input type="checkbox" v-model="darkMode">
+            </label>
+            <div class="color-picker">
+                <label>Accent Color:</label>
+                <input type="color" v-model="accentColor">
+            </div>
         </div>
-        <button type="submit" class="btn btn-success w-100" id="setTimer">Set Timer</button>
-      </form>
+
+        <!-- Time Picker Modal -->
+        <div class="modal" v-if="!countdownActive">
+            <h2>Set Target Time</h2>
+            <input type="time" v-model="targetTimeInput">
+            <button @click="startCountdown">Start Countdown</button>
+        </div>
+
+        <!-- Countdown Display -->
+        <div class="countdown-display" v-if="countdownActive">
+            {{ formattedTime }}
+        </div>
+
+        <button class="settings-btn" @click="toggleSettings">⚙️</button>
     </div>
-  </div>
-  <div class="countdown" id="countdown">--:--:--</div>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <script>
-    const countdownEl = document.getElementById('countdown');
-    const timeForm = document.getElementById('timeForm');
-    const targetTimeInput = document.getElementById('targetTime');
-    const darkModeToggle = document.getElementById('darkModeToggle');
-    let targetDate = null;
-    let countdownInterval = null;
 
-    window.onload = () => {
-      countdownEl.textContent = '--:--:--';
-    };
+    <audio id="alarmSound" src="https://www.soundjay.com/misc/sounds/alarm-clock-01.mp3" preload="auto"></audio>
 
-    darkModeToggle.addEventListener('click', () => {
-      document.body.classList.toggle('light-mode');
-      if (document.body.classList.contains('light-mode')) {
-        document.body.style.backgroundColor = '#fff';
-        document.body.style.color = '#000';
-        darkModeToggle.textContent = '🌙';
-      } else {
-        document.body.style.backgroundColor = '#000';
-        document.body.style.color = '#fff';
-        darkModeToggle.textContent = '☀️';
-      }
-    });
+    <script>
+        const { createApp, ref, computed, watchEffect, onMounted, onUnmounted } = Vue;
 
-    timeForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const timeValue = targetTimeInput.value;
-      if (!timeValue) return;
+        createApp({
+            setup() {
+                const targetTime = ref(null);
+                const countdownActive = ref(false);
+                const showSettings = ref(false);
+                const darkMode = ref(false);
+                const accentColor = ref('#42b983');
+                const alarmSound = new Audio('https://www.soundjay.com/misc/sounds/alarm-clock-01.mp3');
+                const hasPlayedAlarm = ref(false);
+                const currentTime = ref(Date.now());
+                const targetTimeInput = ref('');
 
-      const [targetHours, targetMinutes] = timeValue.split(':').map(Number);
-      const now = new Date();
-      targetDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), targetHours, targetMinutes, 0);
+                // Update current time every second
+                let timerInterval;
+                onMounted(() => {
+                    timerInterval = setInterval(() => {
+                        currentTime.value = Date.now();
+                    }, 1000);
+                });
 
-      if (targetDate <= now) {
-        targetDate.setDate(targetDate.getDate() + 1);
-      }
+                onUnmounted(() => {
+                    clearInterval(timerInterval);
+                });
 
-      if (countdownInterval) clearInterval(countdownInterval);
-      updateCountdown();
-      countdownInterval = setInterval(updateCountdown, 1000);
+                const formattedTime = computed(() => {
+                    if (!targetTime.value) return '00:00:00';
+                    const distance = targetTime.value - currentTime.value;
 
-      const collapseEl = document.getElementById('inputCollapse');
-      const bsCollapse = new bootstrap.Collapse(collapseEl, { toggle: false });
-      bsCollapse.hide();
-    });
+                    if (distance <= 0) {
+                        if (!hasPlayedAlarm.value) {
+                            playAlarm();
+                            hasPlayedAlarm.value = true;
+                        }
+                        return '00:00:00';
+                    }
 
-    function updateCountdown() {
-      if (!targetDate) return;
-      const now = new Date();
-      let diff = Math.max(targetDate - now, 0);
+                    hasPlayedAlarm.value = false; // Reset if new timer started
+                    const hours = Math.floor(distance / (1000 * 60 * 60));
+                    const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((distance % (1000 * 60)) / 1000);
 
-      const hours = Math.floor(diff / 3600000);
-      diff %= 3600000;
-      const minutes = Math.floor(diff / 60000);
-      diff %= 60000;
-      const seconds = Math.floor(diff / 1000);
+                    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+                });
 
-      countdownEl.textContent = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-    }
-  </script>
+                function startCountdown() {
+                    if (targetTimeInput.value) {
+                        const [hours, minutes] = targetTimeInput.value.split(':');
+                        const now = new Date();
+                        const target = new Date(
+                            now.getFullYear(),
+                            now.getMonth(),
+                            now.getDate(),
+                            hours,
+                            minutes
+                        );
+
+                        if (target < now) target.setDate(target.getDate() + 1);
+
+                        targetTime.value = target.getTime();
+                        countdownActive.value = true;
+                    }
+                }
+
+                function playAlarm() {
+                    alarmSound.play().catch(error => {
+                        console.log('Autoplay blocked, please interact first');
+                    });
+                }
+
+                function toggleSettings() {
+                    showSettings.value = !showSettings.value;
+                }
+
+                watchEffect(() => {
+                    document.documentElement.setAttribute('data-theme', darkMode.value ? 'dark' : 'light');
+                    document.documentElement.style.setProperty('--accent-color', accentColor.value);
+                });
+
+                return {
+                    targetTimeInput,
+                    countdownActive,
+                    formattedTime,
+                    startCountdown,
+                    showSettings,
+                    darkMode,
+                    accentColor,
+                    toggleSettings
+                };
+            }
+        }).mount('#app');
+    </script>
 </body>
 </html>
