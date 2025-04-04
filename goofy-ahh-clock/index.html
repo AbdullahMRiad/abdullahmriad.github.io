@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Goofy Ahh Clock</title>
+  <style>
+    body {
+      background: #111;
+      color: #0f0;
+      font-family: monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      text-align: center;
+    }
+    #clock {
+      font-size: 4rem;
+    }
+    #status {
+      font-size: 1.2rem;
+      margin-top: 20px;
+    }
+    #overlay {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.95);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: white;
+      padding: 20px;
+      z-index: 999;
+    }
+    button {
+      margin-top: 20px;
+      font-size: 1.1rem;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      background: #0f0;
+      color: black;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div id="overlay">
+    <h1>Welcome to Goofy Ahh Clock</h1>
+    <p>We need your location to get the Dhuhr prayer time and make a silly clock out of it.</p>
+    <button onclick="initClock()">Give Location Permission</button>
+  </div>
+  <div id="clock" style="display: none;">Loading...</div>
+  <div id="status" style="display: none;"></div>
+
+  <script>
+    async function getClockOffset() {
+      try {
+        document.getElementById('status').innerText = 'Getting location...';
+
+        const pos = await new Promise((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject);
+        });
+
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+        const today = new Date();
+        const dateStr = today.toLocaleDateString('en-GB').split('/').reverse().join('-');
+
+        document.getElementById('status').innerText = 'Fetching Dhuhr time...';
+
+        const res = await fetch(`https://api.aladhan.com/v1/timings/${dateStr}?latitude=${lat}&longitude=${lon}`);
+        const data = await res.json();
+
+        const dhuhr = data.data.timings.Dhuhr;
+        const dhuhrParts = dhuhr.split(':').map(Number);
+        const dhuhrDate = new Date();
+        dhuhrDate.setHours(dhuhrParts[0], dhuhrParts[1], 0);
+
+        const noon = new Date();
+        noon.setHours(12, 0, 0);
+
+        const offset = dhuhrDate.getTime() - noon.getTime();
+        return offset;
+      } catch (err) {
+        document.getElementById('status').innerText = 'Error: ' + err.message;
+        return 0;
+      }
+    }
+
+    async function startClock() {
+      const offset = await getClockOffset();
+      document.getElementById('status').innerText = `Offset from 12:00: ${offset / 60000} minutes`;
+
+      function updateClock() {
+        const now = new Date();
+        const goofyTime = new Date(now.getTime() + offset);
+        const h = String(goofyTime.getHours()).padStart(2, '0');
+        const m = String(goofyTime.getMinutes()).padStart(2, '0');
+        const s = String(goofyTime.getSeconds()).padStart(2, '0');
+        document.getElementById('clock').innerText = `${h}:${m}:${s}`;
+      }
+
+      setInterval(updateClock, 1000);
+      updateClock();
+    }
+
+    function initClock() {
+      document.getElementById('overlay').style.display = 'none';
+      document.getElementById('clock').style.display = 'block';
+      document.getElementById('status').style.display = 'block';
+      startClock();
+    }
+  </script>
+</body>
+</html>
